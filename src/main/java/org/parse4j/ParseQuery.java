@@ -37,7 +37,7 @@ public class ParseQuery<T extends ParseObject> {
 	private boolean trace;
 	private boolean caseSensitive = true;
 	private String strTrace;
-    private String sessionToken = null;
+    	private String sessionToken = null;
 
 	public ParseQuery(Class<T> subclass) {
 		this(ParseRegistry.getClassName(subclass));
@@ -390,6 +390,7 @@ public class ParseQuery<T extends ParseObject> {
 		else {
 			endPoint = getClassName();
 		}
+		
 		
 		ParseGetCommand command = new ParseGetCommand(endPoint);
 		JSONObject query = whereEqualTo("objectId", objectId).toREST();
