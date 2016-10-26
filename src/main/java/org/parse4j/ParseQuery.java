@@ -391,7 +391,7 @@ public class ParseQuery<T extends ParseObject> {
 			endPoint = getClassName();
 		}
 		
-		
+
 		ParseGetCommand command = new ParseGetCommand(endPoint);
 		JSONObject query = whereEqualTo("objectId", objectId).toREST();
 		query.remove("className");
