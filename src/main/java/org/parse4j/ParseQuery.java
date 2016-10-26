@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.regex.Pattern;
 
-public class ParseQuery<T extends ParseObject> {
+public class ParseQuery<T extends org.parse4j.ParseObject> {
 	
 	private static Logger LOGGER = LoggerFactory.getLogger(ParseQuery.class);
 
@@ -37,6 +37,7 @@ public class ParseQuery<T extends ParseObject> {
 	private boolean trace;
 	private boolean caseSensitive = true;
 	private String strTrace;
+	private String sessionToken = null;
 
 	public ParseQuery(Class<T> subclass) {
 		this(ParseRegistry.getClassName(subclass));
@@ -52,12 +53,12 @@ public class ParseQuery<T extends ParseObject> {
 		this.extraOptions = new HashMap<String, Object>();
 	}
 	
-	public static <T extends ParseObject> ParseQuery<T> getQuery(
+	public static <T extends org.parse4j.ParseObject> ParseQuery<T> getQuery(
 			Class<T> subclass) {
 		return new ParseQuery<T>(subclass);
 	}
 
-	public static <T extends ParseObject> ParseQuery<T> getQuery(
+	public static <T extends org.parse4j.ParseObject> ParseQuery<T> getQuery(
 			String className) {
 		return new ParseQuery<T>(className);
 	}
@@ -162,29 +163,29 @@ public class ParseQuery<T extends ParseObject> {
 		return this;
 	}
 
-	public ParseQuery<T> whereNear(String key, ParseGeoPoint point) { 
+	public ParseQuery<T> whereNear(String key, org.parse4j.ParseGeoPoint point) {
 		addCondition(key, "$nearSphere", point);
 		return this;
 	}
 
-	public ParseQuery<T> whereWithinMiles(String key, ParseGeoPoint point,double maxDistance) {
-		whereWithinRadians(key, point, maxDistance / ParseGeoPoint.EARTH_MEAN_RADIUS_MILE);
+	public ParseQuery<T> whereWithinMiles(String key, org.parse4j.ParseGeoPoint point, double maxDistance) {
+		whereWithinRadians(key, point, maxDistance / org.parse4j.ParseGeoPoint.EARTH_MEAN_RADIUS_MILE);
 		return this;
 	}
 
-	public ParseQuery<T> whereWithinKilometers(String key, ParseGeoPoint point, double maxDistance) {
-		whereWithinRadians(key, point, maxDistance / ParseGeoPoint.EARTH_MEAN_RADIUS_KM);
+	public ParseQuery<T> whereWithinKilometers(String key, org.parse4j.ParseGeoPoint point, double maxDistance) {
+		whereWithinRadians(key, point, maxDistance / org.parse4j.ParseGeoPoint.EARTH_MEAN_RADIUS_KM);
 		return this;
 	}
 
-	public ParseQuery<T> whereWithinRadians(String key, ParseGeoPoint point, double maxDistance) {
+	public ParseQuery<T> whereWithinRadians(String key, org.parse4j.ParseGeoPoint point, double maxDistance) {
 		addCondition(key, "$nearSphere", point);
 		addCondition(key, "$maxDistance", Double.valueOf(maxDistance));
 		return this;
 	}
 
-	public ParseQuery<T> whereWithinGeoBox(String key, ParseGeoPoint southwest, ParseGeoPoint northeast) {
-		ArrayList<ParseGeoPoint> array = new ArrayList<ParseGeoPoint>();
+	public ParseQuery<T> whereWithinGeoBox(String key, org.parse4j.ParseGeoPoint southwest, org.parse4j.ParseGeoPoint northeast) {
+		ArrayList<org.parse4j.ParseGeoPoint> array = new ArrayList<org.parse4j.ParseGeoPoint>();
 		array.add(southwest);
 		array.add(northeast);
 		HashMap<String, Object> dictionary = new HashMap<String, Object>();
@@ -235,7 +236,7 @@ public class ParseQuery<T extends ParseObject> {
 		return this;
 	}
 
-	public ParseQuery<T> whereRelatedTo(ParseObject parent, String key) {
+	public ParseQuery<T> whereRelatedTo(org.parse4j.ParseObject parent, String key) {
 		this.where.put("$relatedTo", new RelationConstraint(key, parent));
 		return this;
 	}
@@ -346,11 +347,11 @@ public class ParseQuery<T extends ParseObject> {
 			}
 			
 			if (!this.include.isEmpty()) {
-				params.put("include", Parse.join(this.include, ","));
+				params.put("include", org.parse4j.Parse.join(this.include, ","));
 			}
 			
 			if (this.selectedKeys != null) {
-				params.put("keys", Parse.join(this.selectedKeys, ","));
+				params.put("keys", org.parse4j.Parse.join(this.selectedKeys, ","));
 			}
 			
 			if (this.trace) {
@@ -433,7 +434,7 @@ public class ParseQuery<T extends ParseObject> {
 
 	public void getInBackground(String objectId, GetCallback<T> callback) {
 		GetInBackgroundThread task = new GetInBackgroundThread(objectId, callback);
-		ParseExecutor.runInBackground(task);
+		org.parse4j.ParseExecutor.runInBackground(task);
 	}
 	
 	class GetInBackgroundThread extends Thread {
@@ -505,6 +506,8 @@ public class ParseQuery<T extends ParseObject> {
 
 		final ParsePostCommand command = new ParsePostCommand(endPoint);
 		command.setData(json);
+		if (sessionToken != null)
+			command.addHeader(org.parse4j.ParseConstants.HEADER_SESSION_TOKEN, sessionToken);
 		final ParseResponse response = command.perform();
 
 		if(!response.isFailed()) {
@@ -528,6 +531,8 @@ public class ParseQuery<T extends ParseObject> {
 		final String endPoint = retrieveEndpoint();
 		final ParsePutCommand command = new ParsePutCommand(endPoint + "/" + objectId);
 		command.setData(data);
+		if (sessionToken != null)
+			command.addHeader(org.parse4j.ParseConstants.HEADER_SESSION_TOKEN, sessionToken);
 		final ParseResponse response = command.perform();
 
 		if(response.isFailed()) {
@@ -543,6 +548,8 @@ public class ParseQuery<T extends ParseObject> {
 		ParseGetCommand command = new ParseGetCommand(endPoint);
 		query.remove("className");
 		command.setData(query);
+		if (sessionToken != null)
+			command.addHeader(org.parse4j.ParseConstants.HEADER_SESSION_TOKEN, sessionToken);
 		ParseResponse response = command.perform();
 		List<T> results = null;
 		if(!response.isFailed()) {
@@ -576,19 +583,19 @@ public class ParseQuery<T extends ParseObject> {
 						"Although Parse reports object successfully saved, the response was invalid.",
 						e);
 				throw new ParseException(
-						ParseException.INVALID_JSON,
+						org.parse4j.ParseException.INVALID_JSON,
 						"Although Parse reports object successfully saved, the response was invalid.",
 						e);
 			} catch (InstantiationException e) {
 				LOGGER.error("Error while instantiating class. Did you register your subclass?", e);
 				throw new ParseException(
-					ParseException.INVALID_JSON,
+					org.parse4j.ParseException.INVALID_JSON,
 					"Although Parse reports object successfully saved, the response was invalid.",
 					e);
 			} catch (IllegalAccessException e) {
 				LOGGER.error("Error while instantiating class. Did you register your subclass?",e);
 				throw new ParseException(
-					ParseException.INVALID_JSON,
+					org.parse4j.ParseException.INVALID_JSON,
 					"Although Parse reports object successfully saved, the response was invalid.",
 					e);
 			}
@@ -601,7 +608,7 @@ public class ParseQuery<T extends ParseObject> {
 
 	public void findInBackground(FindCallback<T> callback) {
 		FindInBackgroundThread task = new FindInBackgroundThread(callback);
-		ParseExecutor.runInBackground(task);
+		org.parse4j.ParseExecutor.runInBackground(task);
 	}
 	
 	class FindInBackgroundThread extends Thread {
@@ -637,6 +644,8 @@ public class ParseQuery<T extends ParseObject> {
 		query.put("limit", 0);
 		query.remove("className");
 		command.setData(query);
+		if (sessionToken != null)
+			command.addHeader(org.parse4j.ParseConstants.HEADER_SESSION_TOKEN, sessionToken);
 		ParseResponse response = command.perform();
 		if(!response.isFailed()) {
 			if(response.getJsonObject() == null) {
@@ -653,7 +662,7 @@ public class ParseQuery<T extends ParseObject> {
 						"Although Parse reports object successfully saved, the response was invalid.",
 						e);
 				throw new ParseException(
-						ParseException.INVALID_JSON,
+						org.parse4j.ParseException.INVALID_JSON,
 						"Although Parse reports object successfully saved, the response was invalid.",
 						e);
 			}
@@ -667,7 +676,7 @@ public class ParseQuery<T extends ParseObject> {
 
 	public void countInBackground(CountCallback countCallback) {
 		CountInBackgroundThread task = new CountInBackgroundThread(countCallback);
-		ParseExecutor.runInBackground(task);
+		org.parse4j.ParseExecutor.runInBackground(task);
 	}
 	
 	class CountInBackgroundThread extends Thread {
@@ -700,9 +709,9 @@ public class ParseQuery<T extends ParseObject> {
 
 	public class RelationConstraint {
 		private String key;
-		private ParseObject object;
+		private org.parse4j.ParseObject object;
 
-		public RelationConstraint(String key, ParseObject object) {
+		public RelationConstraint(String key, org.parse4j.ParseObject object) {
 			if ((key == null) || (object == null)) {
 				throw new IllegalArgumentException("Arguments must not be null.");
 			}
@@ -714,11 +723,11 @@ public class ParseQuery<T extends ParseObject> {
 			return this.key;
 		}
 
-		public ParseObject getObject() {
+		public org.parse4j.ParseObject getObject() {
 			return this.object;
 		}
 
-		public ParseRelation<ParseObject> getRelation() {
+		public ParseRelation<org.parse4j.ParseObject> getRelation() {
 			return this.object.getRelation(this.key);
 		}
 
@@ -748,7 +757,7 @@ public class ParseQuery<T extends ParseObject> {
 			return po;
 		}
 		else {
-			ParseObject po = new ParseObject(getClassName());
+			org.parse4j.ParseObject po = new org.parse4j.ParseObject(getClassName());
 			// see above for the "true" argument
 			po.setData(obj, true);
 			return (T) po;
@@ -762,5 +771,21 @@ public class ParseQuery<T extends ParseObject> {
 		else {
 			return getClassName();
 		}
+	}
+
+	/**
+	 * Add the current user sesseonToken to the request headers
+	 */
+	public void addSessionToken() {
+		addSessionToken(org.parse4j.ParseUser.getCurrent().getSessionToken());
+	}
+
+	/**
+	 * Add sesseonToken to the request headers.
+	 *
+	 * @param sessionToken a session token.
+	 */
+	public void addSessionToken(String sessionToken) {
+		this.sessionToken = sessionToken;
 	}
 }
